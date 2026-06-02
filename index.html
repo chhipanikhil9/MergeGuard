@@ -453,7 +453,8 @@
     </div>
 
 <script>
-const SAMPLE_SQL = `-- analytics/other_staging_dags/hive_edw_staging_sandbox_dag/customer_checkout_aggregates.hql
+const SAMPLE_SQL = 
+`
 DROP TABLE IF EXISTS staging_sandbox.customer_checkout_aggregates_v1;
 
 CREATE TABLE staging_sandbox.customer_checkout_aggregates_v1
@@ -528,7 +529,8 @@ function setCode(src) {
 codeArea.addEventListener('input', renderGutter);
 codeArea.addEventListener('blur', () => setCode(codeArea.innerText));
 
-const BLOCK_SQL = `-- analytics/other_production_dags/hive_edw_prod_dag/checkout_user_enrichment.hql
+const BLOCK_SQL = 
+`
 INSERT OVERWRITE TABLE prod_analytics.customer_checkout_enriched
 SELECT
     t.client_account_id,
