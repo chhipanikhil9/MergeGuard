@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MR !76144 · Update analytics_dev_cf.hql · GitLab Demo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        :root {
+            --bg-soft: #fbfafd;
+            --ink: #1f1e24;
+            --muted: #626168;
+            --line: #dcdcde;
+            --line-soft: #ececef;
+            --brand: #6e49cb;
+            --brand-strong: #5b3aa8;
+            --link: #1068bf;
+            --ok: #108548;
+            --ok-bg: #ecf4ee;
+            --ok-border: #c3e0cd;
+            --bad: #dd2b0e;
+            --warn: #ab6100;
+            --code-bg: #1f1f1f;
+            --code-text: #d4d4d4;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            color: var(--ink);
+            background: var(--bg-soft);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .navbar {
+            background: #1f1e24; color: #fff;
+            padding: 8px 20px;
+            display: flex; align-items: center; gap: 14px;
+            font-size: 13px;
+        }
+        .navbar .logo {
+            background: #fc6d26; width: 26px; height: 26px;
+            border-radius: 6px; display: grid; place-items: center;
+            font-weight: 800;
+        }
+        .navbar .breadcrumb { color: #c9c8cc; }
+        .navbar .breadcrumb a { color: #c9c8cc; text-decoration: none; }
+        .navbar .breadcrumb span.sep { margin: 0 6px; color: #7a7a82; }
+        .navbar .spacer { flex: 1; }
+        .navbar .icon-btn { color: #c9c8cc; cursor: pointer; padding: 4px 8px; }
+
+        .container { max-width: 1280px; margin: 0 auto; padding: 20px; }
+
+        .mr-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+        .mr-title h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; }
+        .mr-meta {
+            color: var(--muted); font-size: 13px;
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 2px 8px; border-radius: 10px;
+            font-size: 12px; font-weight: 500;
+            border: 1px solid transparent;
+        }
+        .badge-merged { background: #ddd2f5; color: #4f2d99; }
+        .badge-passed { background: var(--ok-bg); color: var(--ok); border-color: var(--ok-border); }
+        .badge-latest { background: #e0f3e6; color: #0f7b39; }
+        .badge-mr { background: #e2ebfa; color: #1068bf; }
+        .badge-dev { background: #f4f3f8; color: #525167; border: 1px solid var(--line); }
+
+        .chip {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: #f4f3f8; color: #444;
+            padding: 2px 8px; border-radius: 6px;
+            font-size: 12px; border: 1px solid var(--line-soft);
+        }
+
+        .btn {
+            border: 1px solid var(--line); background: #fff;
+            padding: 6px 12px; border-radius: 6px;
+            font-size: 13px; font-weight: 500; cursor: pointer;
+            color: var(--ink); transition: background 0.15s;
+            font-family: inherit;
+        }
+        .btn:hover { background: #f4f3f8; }
+        .btn-primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+        .btn-primary:hover { background: var(--brand-strong); }
+        .btn-success { background: var(--ok); color: #fff; border-color: var(--ok); }
+        .btn-success:hover { background: #0d6c3b; }
+        .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+        .tabs { margin-top: 18px; border-bottom: 1px solid var(--line); display: flex; gap: 4px; }
+        .tab {
+            padding: 10px 14px; font-size: 14px; color: var(--muted);
+            cursor: pointer; border-bottom: 2px solid transparent;
+            display: inline-flex; align-items: center; gap: 8px; user-select: none;
+        }
+        .tab:hover { color: var(--ink); }
+        .tab.active { color: var(--ink); border-bottom-color: var(--brand); font-weight: 600; }
+        .tab .count {
+            background: #ececef; color: #525167;
+            padding: 0 6px; border-radius: 10px; font-size: 12px;
+            min-width: 18px; text-align: center;
+        }
+
+        .panel { display: none; padding-top: 18px; }
+        .panel.active { display: block; }
+
+        .card {
+            background: #fff; border: 1px solid var(--line);
+            border-radius: 8px; margin-bottom: 16px; overflow: hidden;
+        }
+        .card-head {
+            padding: 10px 14px; border-bottom: 1px solid var(--line);
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            background: #fafafa; font-size: 13px;
+        }
+        .card-body { padding: 14px; }
+
+        .file-header {
+            background: #fafafa;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 13px;
+        }
+        .file-path { font-family: 'JetBrains Mono', monospace; color: #444; }
+
+        .editor {
+            display: grid; grid-template-columns: 50px 1fr;
+            background: var(--code-bg); color: var(--code-text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12.5px; line-height: 1.55;
+            max-height: 480px; overflow: auto;
+        }
+        .gutter {
+            background: #1a1a1a; color: #6a6a6a;
+            text-align: right; padding: 10px 8px;
+            user-select: none; border-right: 1px solid #2a2a2a;
+        }
+        .gutter div { height: 1.55em; }
+        .code { padding: 10px 14px; white-space: pre; outline: none; }
+        .editor-actions {
+            background: #fafafa; padding: 10px 12px;
+            border-top: 1px solid var(--line);
+            display: flex; gap: 8px; justify-content: flex-end; align-items: center;
+        }
+
+        .kw { color: #c586c0; }
+        .fn { color: #dcdcaa; }
+        .str { color: #ce9178; }
+        .num { color: #b5cea8; }
+        .cmt { color: #6a9955; font-style: italic; }
+
+        .audit { display: grid; grid-template-columns: 48px 1fr; gap: 12px; padding: 16px; }
+        .avatar {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, #6e49cb, #b08fd9);
+            border-radius: 50%; display: grid; place-items: center;
+            color: #fff; font-weight: 700; font-size: 16px;
+        }
+        .audit-head {
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+            font-size: 13px; color: var(--muted);
+        }
+        .audit-head .author { color: var(--ink); font-weight: 600; }
+        .audit-title {
+            font-size: 18px; font-weight: 600; margin: 10px 0 4px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .audit-title .shield { color: var(--brand); }
+        .audit hr { border: 0; border-top: 1px solid var(--line-soft); margin: 14px 0; }
+        .audit h3 { font-size: 15px; font-weight: 700; margin: 16px 0 8px; }
+        .audit p { margin: 0 0 10px; color: #2b2b30; }
+        .audit ul { margin: 6px 0 10px; padding-left: 22px; }
+        .audit li { margin-bottom: 4px; }
+        .ic {
+            background: #f4f3f8; border: 1px solid var(--line-soft);
+            padding: 1px 5px; border-radius: 4px;
+            font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #3d2c66;
+        }
+        .verdict {
+            margin-top: 14px; padding: 10px 14px; border-radius: 8px;
+            font-weight: 600; display: inline-flex; align-items: center; gap: 8px;
+        }
+        .verdict.pass { background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok-border); }
+        .verdict.fail { background: #fbe9e7; color: var(--bad); border: 1px solid #f3b8af; }
+
+        .audit .sect { margin: 10px 0; }
+        .audit h4 { font-size: 14px; font-weight: 700; margin: 14px 0 6px; color: #2b2b30; }
+        .audit .meta-box {
+            background: #faf9fc;
+            border: 1px solid var(--line-soft);
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+        }
+        .audit pre.snippet {
+            background: #f5f3fa;
+            border: 1px solid var(--line-soft);
+            border-left: 3px solid var(--brand);
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: #2b1e4d;
+            overflow-x: auto;
+            white-space: pre;
+            margin: 8px 0;
+        }
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        thead th {
+            text-align: left; font-weight: 600;
+            padding: 12px 14px; border-bottom: 1px solid var(--line);
+            color: #2b2b30; background: #fafafa;
+        }
+        tbody td { padding: 14px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+        .pipe-status {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: var(--ok-bg); color: var(--ok);
+            border: 1px solid var(--ok-border);
+            padding: 3px 10px; border-radius: 12px;
+            font-weight: 600; font-size: 13px;
+        }
+        .stage-check {
+            width: 26px; height: 26px; border-radius: 50%;
+            background: var(--ok); color: #fff;
+            display: grid; place-items: center; font-size: 13px;
+        }
+        .pipe-link { color: var(--link); text-decoration: none; font-weight: 500; }
+        .pipe-link:hover { text-decoration: underline; }
+        .meta-line { color: var(--muted); font-size: 12.5px; margin-top: 4px; display: flex; align-items: center; gap: 10px; }
+
+        .loader {
+            display: none; align-items: center; gap: 10px;
+            background: #fff8e6; border: 1px solid #f1d27a; color: #714200;
+            padding: 8px 12px; border-radius: 6px; font-size: 13px;
+        }
+        .loader.show { display: inline-flex; }
+        .spin {
+            width: 14px; height: 14px;
+            border: 2px solid #f1d27a; border-top-color: transparent;
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .hint-bar { margin-top: 8px; font-size: 12px; color: var(--muted); }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <div class="logo">G</div>
+        <div class="breadcrumb">
+            <a href="#">data-platform</a><span class="sep">/</span>
+            <a href="#">analytics</a><span class="sep">/</span>
+            <a href="#">cdp_main</a><span class="sep">/</span>
+            <span style="color:#fff">Merge requests</span><span class="sep">/</span>
+            <span style="color:#fff">!76144</span>
+        </div>
+        <div class="spacer"></div>
+        <div class="icon-btn"><i class="fa-solid fa-magnifying-glass"></i></div>
+        <div class="icon-btn"><i class="fa-solid fa-bell"></i></div>
+        <div class="icon-btn"><i class="fa-solid fa-circle-user"></i></div>
+    </div>
+
+    <div class="container">
+
+        <div class="mr-title">
+            <div>
+                <h1>Update analytics_dev_cf.hql</h1>
+                <div class="mr-meta">
+                    <span id="mrStatusBadge" class="badge badge-dev"><i class="fa-solid fa-code-branch"></i> Open</span>
+                    <strong>Nikhil Chhipa</strong>
+                    requested to merge
+                    <span class="chip mono">nikhil1.intern-cdp_main-pa…</span>
+                    into
+                    <span class="chip mono">cdp_main</span>
+                    <span>· just now</span>
+                </div>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button class="btn"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+                <button class="btn"><i class="fa-solid fa-ellipsis"></i></button>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="changes"><i class="fa-solid fa-code"></i> Changes <span class="count">1</span></div>
+            <div class="tab" data-tab="overview"><i class="fa-regular fa-comments"></i> Overview <span id="overviewCount" class="count">1</span></div>
+            <div class="tab" data-tab="commits"><i class="fa-solid fa-code-commit"></i> Commits <span class="count">1</span></div>
+            <div class="tab" data-tab="pipelines"><i class="fa-solid fa-circle-nodes"></i> Pipelines <span id="pipelinesCount" class="count">0</span></div>
+        </div>
+
+        <!-- Changes : editor -->
+        <div class="panel active" id="panel-changes">
+            <div class="card">
+                <div class="file-header">
+                    <div>
+                        <i class="fa-regular fa-file-code"></i>
+                        <span class="file-path">analytics/other_production_dags/hive_edw_analytics_dev_dag/analytics_dev_cf.hql</span>
+                    </div>
+                    <div class="chip mono"><i class="fa-solid fa-pen"></i> editable</div>
+                </div>
+
+                <div class="editor">
+                    <div class="gutter" id="gutter"></div>
+                    <pre class="code" id="codeArea" contenteditable="true" spellcheck="false"></pre>
+                </div>
+
+                <div class="editor-actions">
+                    <div id="runLoader" class="loader"><div class="spin"></div><span>analytics_git_mr_bot is analyzing this change…</span></div>
+                    <div style="flex:1"></div>
+                    <button class="btn" id="resetBtn" hidden><i class="fa-solid fa-rotate-left"></i> Load Safe Example</button>
+                    <button class="btn" id="blockBtn" hidden style="color:var(--bad); border-color:#f3b8af;"><i class="fa-solid fa-triangle-exclamation"></i> Load Blocking Example</button>
+                    <button class="btn btn-primary" id="runPipelineBtn"><i class="fa-solid fa-play"></i> Run Pipeline</button>
+                </div>
+            </div>
+
+            <!-- <div class="hint-bar">
+                Use <strong>Load Safe Example</strong> for a passing pipeline, or <strong>Load Blocking Example</strong> to demo a real prod-impact failure (prod-table write + cross-streaming JOIN + missing partition pruning).
+            </div> -->
+        </div>
+
+        <!-- Overview : audit -->
+        <div class="panel" id="panel-overview">
+            <div class="card">
+                <div class="card-head">
+                    <div><i class="fa-regular fa-comments"></i> Activity</div>
+                    <div class="chip">Newest first</div>
+                </div>
+
+                <div id="auditEmpty" class="card-body" style="color:var(--muted)">
+                    No activity yet. Run the pipeline from the Changes tab to generate the audit.
+                </div>
+
+                <div id="auditCard" style="display:none">
+                    <div class="audit">
+                        <div class="avatar">G</div>
+                        <div>
+                            <div class="audit-head">
+                                <span class="author">GIT_MR_GATEKEEPER</span>
+                                <span>@project_2122_bot_132db066baf7281d15f7df2f7f1dda65</span>
+                                <span>· just now</span>
+                                <span class="badge badge-dev" style="margin-left:auto">Developer</span>
+                            </div>
+
+                            <div class="audit-title">
+                                <i class="fa-solid fa-shield-halved shield"></i>
+                                analytics_git_mr_bot Audit
+                            </div>
+
+                            <hr>
+
+                            <h2 style="font-size:17px;margin:6px 0 10px">Impact &amp; Quality Report</h2>
+                            <p><strong>User:</strong> <span class="ic">nikhil1.intern</span></p>
+
+                            <hr>
+
+                            <h3>1. PROD IMPACT</h3>
+                            <div id="auditProd"></div>
+
+                            <hr>
+
+                            <h3>2. SYNTAX / SEMANTICS</h3>
+                            <div id="auditSyntax"></div>
+
+                            <hr>
+
+                            <h3>3. IMPROVEMENTS</h3>
+                            <div id="auditPerf"></div>
+
+                            <hr>
+
+                            <h3>4. FINAL VERDICT</h3>
+                            <div id="auditVerdict"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Commits -->
+        <div class="panel" id="panel-commits">
+            <div class="card">
+                <div class="card-head"><div><i class="fa-solid fa-code-commit"></i> 1 commit</div></div>
+                <div class="card-body">
+                    <div style="display:flex; align-items:center; gap:10px">
+                        <span class="chip mono">6afec5e0</span>
+                        <span>Update analytics_dev_cf.hql</span>
+                        <span style="color:var(--muted); margin-left:auto">Nikhil Chhipa · just now</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pipelines -->
+        <div class="panel" id="panel-pipelines">
+            <div class="card">
+                <div class="card-head">
+                    <div><i class="fa-solid fa-circle-nodes"></i> Pipelines</div>
+                    <button class="btn"><i class="fa-solid fa-rotate"></i> Run pipeline</button>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Pipeline</th>
+                            <th>Created by</th>
+                            <th>Stages</th>
+                            <th style="text-align:right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pipelineRows">
+                        <tr>
+                            <td colspan="5" style="color:var(--muted); text-align:center; padding:30px">
+                                No pipelines yet. Run a pipeline from the Changes tab.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="mergeBox" class="card" style="display:none">
+                <div class="card-body" style="display:flex; align-items:center; gap:14px">
+                    <div class="stage-check"><i class="fa-solid fa-check"></i></div>
+                    <div style="flex:1" id="mergeBoxText">
+                        <div style="font-weight:600">Ready to merge</div>
+                        <div style="color:var(--muted); font-size:13px">All required checks have passed. You can merge this MR.</div>
+                    </div>
+                    <button id="mergeBtn" class="btn btn-success"><i class="fa-solid fa-code-merge"></i> Merge</button>
+                </div>
+            </div>
+
+            <div id="blockBox" class="card" style="display:none">
+                <div class="card-body" style="display:flex; align-items:center; gap:14px; background:#fbe9e7;">
+                    <i class="fa-solid fa-triangle-exclamation" style="color:var(--bad); font-size:20px"></i>
+                    <div style="flex:1">
+                        <div style="font-weight:600; color:var(--bad)">Merge blocked</div>
+                        <div style="color:#7a2210; font-size:13px">Pipeline failed due to production impact risk. Fix the issues listed in the Overview tab and re-run.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+<script>
+const SAMPLE_SQL = `-- analytics/other_staging_dags/hive_edw_staging_sandbox_dag/customer_checkout_aggregates.hql
+DROP TABLE IF EXISTS staging_sandbox.customer_checkout_aggregates_v1;
+
+CREATE TABLE staging_sandbox.customer_checkout_aggregates_v1
+STORED AS ORC TBLPROPERTIES (
+    "orc.compress" = "ZLIB",
+    "external.table.purge" = "true"
+)
+AS
+SELECT
+    CONCAT(year, "-", SUBSTR(CONCAT(0, month), -2), "-", SUBSTR(CONCAT(0, day), -2)) AS operation_date,
+    \`time\`,
+    client_auth_mode,
+    client_error_payload,
+    client_account_id,
+    client_terminal_code,
+    client_request_platform,
+    year,
+    month,
+    day
+FROM staging_stream.transaction_gateway
+WHERE
+    CONCAT(year, "-", SUBSTR(CONCAT(0, month), -2), "-", SUBSTR(CONCAT(0, day), -2))
+    BETWEEN '2026-04-01' AND '2026-05-19'
+    AND business_event_type = 'PROCESS_CHECKOUT'
+    AND business_response_state = 'SUCCESS'
+    AND client_account_id LIKE 'C%'
+GROUP BY
+    CONCAT(year, "-", SUBSTR(CONCAT(0, month), -2), "-", SUBSTR(CONCAT(0, day), -2)),
+    \`time\`,
+    client_auth_mode,
+    client_error_payload,
+    client_account_id,
+    client_terminal_code,
+    client_request_platform,
+    year,
+    month,
+    day
+;`;
+
+const codeArea = document.getElementById('codeArea');
+const gutter = document.getElementById('gutter');
+const runBtn = document.getElementById('runPipelineBtn');
+const resetBtn = document.getElementById('resetBtn');
+const runLoader = document.getElementById('runLoader');
+const tabs = document.querySelectorAll('.tab');
+const panels = document.querySelectorAll('.panel');
+
+function highlight(src) {
+    const esc = src.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    let html = esc.replace(/(--[^\n]*)/g, '<span class="cmt">$1</span>');
+    html = html.replace(/('[^']*'|`[^`]*`|"[^"]*")/g, '<span class="str">$1</span>');
+    html = html.replace(/\b(\d+)\b/g, '<span class="num">$1</span>');
+    const kws = ['SELECT','FROM','WHERE','AND','OR','GROUP BY','ORDER BY','AS','CREATE','TABLE','DROP','IF','EXISTS','STORED','TBLPROPERTIES','INSERT','OVERWRITE','PARTITION','BETWEEN','LIKE','ON','JOIN','LEFT','RIGHT','INNER','OUTER','WITH','UNION','ALL','TRUNCATE','DELETE','UPDATE','SET','VALUES','INTO','NULL','TRUE','FALSE','NOT','IN','IS','CASE','WHEN','THEN','ELSE','END'];
+    const kwRe = new RegExp('\\b(' + kws.join('|') + ')\\b', 'gi');
+    html = html.replace(kwRe, '<span class="kw">$1</span>');
+    html = html.replace(/\b(CONCAT|SUBSTR|COUNT|SUM|MAX|MIN|AVG|COALESCE|CAST|DATE|CURRENT_DATE)\b/gi, '<span class="fn">$1</span>');
+    return html;
+}
+
+function renderGutter() {
+    const lines = codeArea.innerText.split('\n').length;
+    let html = '';
+    for (let i = 1; i <= lines; i++) html += `<div>${i}</div>`;
+    gutter.innerHTML = html;
+}
+
+function setCode(src) {
+    codeArea.innerHTML = highlight(src);
+    renderGutter();
+}
+
+codeArea.addEventListener('input', renderGutter);
+codeArea.addEventListener('blur', () => setCode(codeArea.innerText));
+
+const BLOCK_SQL = `-- analytics/other_production_dags/hive_edw_prod_dag/checkout_user_enrichment.hql
+INSERT OVERWRITE TABLE prod_analytics.customer_checkout_enriched
+SELECT
+    t.client_account_id,
+    t.client_terminal_code,
+    t.client_request_platform,
+    u.user_segment,
+    u.user_tier,
+    u.kyc_status,
+    t.business_event_type,
+    t.business_response_state,
+    COUNT(*) AS event_count,
+    SUM(t.transaction_amount) AS gross_value
+FROM staging_stream.transaction_gateway t
+JOIN staging_stream.user_profile_events u
+  ON t.client_account_id = u.account_id
+WHERE t.business_event_type = 'PROCESS_CHECKOUT'
+  AND t.business_response_state = 'SUCCESS'
+GROUP BY
+    t.client_account_id,
+    t.client_terminal_code,
+    t.client_request_platform,
+    u.user_segment,
+    u.user_tier,
+    u.kyc_status,
+    t.business_event_type,
+    t.business_response_state
+;`;
+
+resetBtn.addEventListener('click', () => setCode(SAMPLE_SQL));
+document.getElementById('blockBtn').addEventListener('click', () => setCode(BLOCK_SQL));
+setCode(SAMPLE_SQL);
+
+function switchTab(name) {
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    panels.forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+}
+tabs.forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+
+function analyze(code) {
+    // Detect block-worthy patterns first
+    const writeMatch  = code.match(/insert\s+(?:into|overwrite)\s+(?:table\s+)?([a-z0-9_]*prod[a-z0-9_]*\.[a-z0-9_]+)/i);
+    const dropProd    = /drop\s+table\s+(?:if\s+exists\s+)?(?:\w+\.)?(transaction_gateway|payment_system|prod_\w+)/i.test(code);
+    const truncProd   = /truncate\s+table\s+(?:\w+\.)?(transaction_gateway|payment_system|prod_\w+)/i.test(code);
+    const streamRefs  = [...new Set((code.match(/(?:from|join)\s+([a-z0-9_]+_stream\.[a-z0-9_]+)/gi) || [])
+                          .map(m => m.replace(/^(?:from|join)\s+/i,'').toLowerCase()))];
+    const streamingJoin = streamRefs.length >= 2;
+    const touchesStream = /(?:from|join)\s+[a-z0-9_]+_stream\./i.test(code);
+    const partitionFilter = /\byear\s*=\s*\d{4}/i.test(code) || /concat\(year/i.test(code);
+    const noPruning = touchesStream && !partitionFilter;
+
+    if (writeMatch || dropProd || truncProd || streamingJoin) {
+        return buildBlockAnalysis(code, { writeMatch, dropProd, truncProd, streamingJoin, streamRefs, noPruning });
+    }
+
+    const findings = { prod: [], syntax: [], perf: [], failed: false };
+
+    const tgtMatch  = code.match(/create\s+table\s+([a-z0-9_\.]+)/i);
+    const srcMatch  = code.match(/from\s+([a-z0-9_\.]+)/i);
+    const dropMatch = code.match(/drop\s+table\s+if\s+exists\s+([a-z0-9_\.]+)/i);
+    const target    = tgtMatch ? tgtMatch[1] : 'staging_sandbox.customer_checkout_aggregates_v1';
+    const source    = srcMatch ? srcMatch[1] : 'staging_stream.transaction_gateway';
+    const dbName    = target.split('.')[0];
+    const tblName   = target.split('.')[1] || target;
+
+    // -------- 1. PROD IMPACT --------
+    if (findings.prod.length === 0) {
+        findings.prod.push(
+            `This Merge Request involves changes to a DAG-only HQL file that creates a table in the <span class="ic">${dbName}</span> database (<span class="ic">${target}</span>). The source table (<span class="ic">${source}</span>) is a production table, but it is only being <strong>read from</strong>, not modified or impacted.`
+        );
+        findings.prod.push(
+            `Based on the provided information, <strong>no active or protected production tables are being impacted or modified by this MR.</strong> Therefore, no production tables are at risk, and no special approval is required for table-level impact.`
+        );
+    }
+
+    // -------- 2. SYNTAX / SEMANTICS --------
+    findings.syntax.push(
+        `The HQL file <span class="ic">analytics/other_staging_dags/hive_edw_staging_sandbox_dag/customer_checkout_aggregates.hql</span> contains the following:`
+    );
+
+    if (dropMatch) {
+        findings.syntax.push(
+            `<strong>DROP TABLE Statement:</strong>` +
+            `<ul>` +
+              `<li>Syntax is correct (<span class="ic">DROP TABLE IF EXISTS ${dropMatch[1]};</span>).</li>` +
+              `<li>Ends with a semicolon.</li>` +
+            `</ul>`
+        );
+    }
+
+    findings.syntax.push(
+        `<strong>CREATE TABLE AS SELECT Statement:</strong>` +
+        `<ul>` +
+          `<li><strong>Table Properties:</strong> <span class="ic">STORED AS ORC TBLPROPERTIES ("orc.compress" = "ZLIB", "external.table.purge" = "true")</span> are syntactically correct and follow standard practices for managed ORC tables.</li>` +
+          `<li><strong>SELECT Clause:</strong>` +
+            `<ul>` +
+              `<li>The columns are explicitly listed, which is a good practice.</li>` +
+              `<li>The use of backticks for <span class="ic">\`time\`</span> is appropriate as <span class="ic">time</span> can be a reserved keyword in some SQL dialects.</li>` +
+              `<li>The <span class="ic">CONCAT</span> logic for <span class="ic">operation_date</span> is syntactically correct.</li>` +
+            `</ul>` +
+          `</li>` +
+          `<li><strong>FROM Clause:</strong> Correctly references <span class="ic">${source}</span>.</li>` +
+          `<li><strong>WHERE Clause:</strong>` +
+            `<ul>` +
+              `<li>The filtering conditions for <span class="ic">business_event_type</span>, <span class="ic">business_response_state</span>, and <span class="ic">client_account_id</span> are syntactically and semantically correct.</li>` +
+              `<li style="color:var(--bad)"><strong>CRITICAL SEMANTIC ISSUE (Partition Pruning):</strong> The date filter <span class="ic">CONCAT(year, "-", SUBSTR(CONCAT(0, month), -2), "-", SUBSTR(CONCAT(0, day), -2)) BETWEEN '2026-04-01' AND '2026-05-19'</span> applies string manipulation functions to the <span class="ic">year, month, day</span> partition columns of <span class="ic">${source}</span>. This prevents Hive's optimizer from effectively pruning partitions, leading to a much wider scan of the massive source table than necessary. This is a severe performance degradation for <span class="ic">staging_stream</span> tables.</li>` +
+            `</ul>` +
+          `</li>` +
+          `<li><strong>GROUP BY Clause:</strong> All non-aggregated columns from the SELECT clause are included in the GROUP BY clause. This is syntactically correct for standard SQL and effectively returns distinct combinations of the selected columns.</li>` +
+          `<li><strong>Trailing Semicolon:</strong> The statement correctly ends with a semicolon.</li>` +
+        `</ul>`
+    );
+
+    if (!/;\s*$/.test(code.trim())) {
+        findings.syntax.push(`<span style="color:var(--warn)"><i class="fa-solid fa-triangle-exclamation"></i> Script does not end with a semicolon — recommended for HQL pipelines.</span>`);
+    }
+
+    // -------- 3. IMPROVEMENTS / PERF --------
+    const metaBlock =
+        `<div class="meta-box"><strong>Metadata for <span class="ic">${source}</span>:</strong>` +
+        `<ul>` +
+          `<li><strong>Partitions:</strong> <span class="ic">year, month, day</span> (3,402 partitions)</li>` +
+          `<li><strong>Bucketing:</strong> <span class="ic">groupingkey</span> (64 buckets)</li>` +
+          `<li><strong>Size:</strong> 146 PB (146,154,792.16 MB)</li>` +
+          `<li><strong>Rows:</strong> 818 Billion</li>` +
+        `</ul>` +
+        `<strong>Metadata for <span class="ic">${target}</span>:</strong>` +
+        `<ul><li>No metadata available as it's a new table being created by this MR.</li></ul></div>`;
+
+    findings.perf.push({ heading: '', html: metaBlock });
+
+    findings.perf.push({
+        heading: '3.1. CRITICAL: Partition Pruning for <span class="ic">' + source + '</span>',
+        html:
+            `<p>The source table <span class="ic">${source}</span> is a massive partitioned table (146 PB, 818 Billion rows), partitioned by <span class="ic">year, month, day</span>. The current <span class="ic">WHERE</span> clause applies functions (<span class="ic">CONCAT</span>, <span class="ic">SUBSTR</span>) to these partition columns, which prevents partition pruning. This means the query will scan significantly more data than required, leading to extremely long execution times and high resource consumption. This is a critical performance issue for any query on <span class="ic">staging_stream</span> tables.</p>` +
+            `<p><strong>Current Query Snippet:</strong></p>` +
+            `<pre class="snippet">WHERE\n  CONCAT(year, "-", SUBSTR(CONCAT(0, month), -2), "-", SUBSTR(CONCAT(0, day), -2))\n  BETWEEN '2026-04-01' AND '2026-05-19'\n  AND business_event_type = 'PROCESS_CHECKOUT'\n  AND business_response_state = 'SUCCESS'\n  AND client_account_id LIKE 'C%'</pre>` +
+            `<p><strong>Recommendation:</strong> Rewrite the WHERE clause to filter directly on the <span class="ic">year</span>, <span class="ic">month</span>, and <span class="ic">day</span> partition columns. This will enable Hive to prune partitions efficiently and only scan the relevant data.</p>` +
+            `<pre class="snippet">-- Recommended WHERE clause\nWHERE\n    year = 2026\n    AND (\n        (month = 4 AND day >= 1) OR\n        (month = 5 AND day <= 19)\n    )\n    AND business_event_type = 'PROCESS_CHECKOUT'\n    AND business_response_state = 'SUCCESS'\n    AND client_account_id LIKE 'C%'</pre>` +
+            `<p>This ensures only data from April 1, 2026 to May 19, 2026 (inclusive) is scanned, drastically reducing query load.</p>`
+    });
+
+    findings.perf.push({
+        heading: '3.2. Table Creation Strategy: Partition the Target Table',
+        html:
+            `<p>The target table <span class="ic">${target}</span> is currently created as a flat table. Given that it is derived from time-series data and includes <span class="ic">year, month, day</span> columns, it is highly recommended to partition this new table by these columns. Partitioning will improve the performance of future queries that filter or aggregate data by date.</p>` +
+            `<p><strong>Recommendation:</strong> Add <span class="ic">PARTITIONED BY (year INT, month INT, day INT)</span> to the CREATE TABLE statement. The partition columns (<span class="ic">year, month, day</span>) must be the last columns in the SELECT list.</p>` +
+            `<pre class="snippet">DROP TABLE IF EXISTS ${target};\n\nCREATE TABLE ${target} (\n    operation_date STRING,\n    \`time\` TIMESTAMP,\n    client_auth_mode STRING,\n    client_error_payload STRING,\n    client_account_id STRING,\n    client_terminal_code STRING,\n    client_request_platform STRING\n)\nPARTITIONED BY (year INT, month INT, day INT) -- Added Partitioning\nSTORED AS ORC TBLPROPERTIES (\n    "orc.compress" = "ZLIB",\n    "external.table.purge" = "true"\n)\nAS\nSELECT\n    CONCAT(year, "-", SUBSTR(CONCAT(0, month), -2), "-", SUBSTR(CONCAT(0, day), -2)) AS operation_date,\n    \`time\`,\n    client_auth_mode,\n    client_error_payload,\n    client_account_id,\n    client_terminal_code,\n    client_request_platform,\n    year,  -- Partition column, must be last in SELECT\n    month, -- Partition column, must be last in SELECT\n    day    -- Partition column, must be last in SELECT\nFROM ${source}\nWHERE\n    year = 2026\n    AND (\n        (month = 4 AND day >= 1) OR\n        (month = 5 AND day <= 19)\n    )\n    AND business_event_type = 'PROCESS_CHECKOUT'\n    AND business_response_state = 'SUCCESS'\n    AND client_account_id LIKE 'C%'\nGROUP BY\n    CONCAT(year, "-", SUBSTR(CONCAT(0, month), -2), "-", SUBSTR(CONCAT(0, day), -2)),\n    \`time\`,\n    client_auth_mode,\n    client_error_payload,\n    client_account_id,\n    client_terminal_code,\n    client_request_platform,\n    year,\n    month,\n    day;</pre>`
+    });
+
+    findings.perf.push({
+        heading: '3.3. Readability: Formatting of Column Lists',
+        html:
+            `<p>For improved readability, it is a good practice to add a space after commas in column lists.</p>` +
+            `<ul>` +
+              `<li><strong>Current:</strong> <span class="ic">client_account_id,client_terminal_code</span></li>` +
+              `<li><strong>Recommendation:</strong> <span class="ic">client_account_id, client_terminal_code</span></li>` +
+            `</ul>`
+    });
+
+    findings.perf.push({
+        heading: '',
+        html: `<p style="margin-top:8px">Please address the <strong>critical partition pruning issue</strong> for the <span class="ic">${source}</span> table, as this will have a significant impact on query performance and cluster resource utilization. Partitioning the new target table will also lead to better query performance for downstream consumers.</p>`
+    });
+
+    return findings;
+}
+
+function buildBlockAnalysis(code, ctx) {
+    const findings = { prod: [], syntax: [], perf: [], failed: true };
+    const target = ctx.writeMatch ? ctx.writeMatch[1] : 'prod_analytics.customer_checkout_enriched';
+    const streams = ctx.streamRefs.length ? ctx.streamRefs : ['staging_stream.transaction_gateway', 'staging_stream.user_profile_events'];
+    const leftStream  = streams[0];
+    const rightStream = streams[1] || streams[0];
+
+    // -------- 1. PROD IMPACT (BLOCK) --------
+    findings.prod.push(
+        `This Merge Request introduces a <strong>direct write to a protected production table</strong> (<span class="ic">${target}</span>) inside a production DAG. <span class="ic">${target.split('.')[0]}</span> is consumed by downstream BI dashboards, Looker models and finance reconciliation jobs — any incorrect or partial overwrite is immediately customer-visible.`
+    );
+    if (ctx.streamingJoin) {
+        findings.prod.push(
+            `The job performs a <strong>cross-streaming JOIN</strong> between two live ingest tables (<span class="ic">${leftStream}</span> × <span class="ic">${rightStream}</span>). Reading both at full scale generates back-pressure on the streaming layer and risks SLA breach for upstream Kafka -> Hive landing pipelines.`
+        );
+    }
+    if (ctx.dropProd || ctx.truncProd) {
+        findings.prod.push(`A <strong>DROP/TRUNCATE on a protected production table</strong> was detected. This is irreversible and never auto-approved.`);
+    }
+    findings.prod.push(
+        `Based on the provided information, <strong>this MR directly modifies protected production assets</strong> and bypasses the staging → promotion workflow. Approval from the <span class="ic">data-platform-sre</span> and <span class="ic">analytics-prod-owners</span> groups is mandatory; the automated gate cannot pass this change.`
+    );
+
+    // -------- 2. SYNTAX / SEMANTICS --------
+    findings.syntax.push(
+        `The HQL file <span class="ic">analytics/other_production_dags/hive_edw_prod_dag/checkout_user_enrichment.hql</span> contains the following:`
+    );
+    findings.syntax.push(
+        `<strong>INSERT OVERWRITE Statement:</strong>` +
+        `<ul>` +
+          `<li>Syntax is valid (<span class="ic">INSERT OVERWRITE TABLE ${target}</span>).</li>` +
+          `<li style="color:var(--bad)"><strong>POLICY VIOLATION:</strong> Target <span class="ic">${target}</span> is on the protected-tables list. Direct overwrite from a DAG MR is disallowed by the <span class="ic">prod-write-guard</span> policy.</li>` +
+        `</ul>`
+    );
+    findings.syntax.push(
+        `<strong>FROM / JOIN Clause:</strong>` +
+        `<ul>` +
+          `<li>Left source: <span class="ic">${leftStream}</span> (streaming, partitioned by <span class="ic">year, month, day</span>, bucketed by <span class="ic">groupingkey</span>).</li>` +
+          `<li>Right source: <span class="ic">${rightStream}</span> (streaming, partitioned by <span class="ic">year, month, day</span>).</li>` +
+          `<li style="color:var(--bad)"><strong>CRITICAL JOIN ISSUE:</strong> The join key <span class="ic">t.client_account_id = u.account_id</span> is <strong>not</strong> the bucket key of either table (<span class="ic">groupingkey</span>). Hive cannot apply a bucket-map-join, so the optimizer falls back to a full shuffle join across 800 B+ rows on each side — this will exhaust YARN containers and likely fail with <span class="ic">OutOfMemoryError</span> on the reducer side.</li>` +
+          `<li style="color:var(--bad)"><strong>CROSS-STREAMING JOIN:</strong> Both inputs are live streaming tables. Joining streaming × streaming without a time-bound snapshot is non-deterministic across reruns and can produce duplicate or missing rows depending on Hive ingest commit timing.</li>` +
+        `</ul>`
+    );
+    findings.syntax.push(
+        `<strong>WHERE Clause:</strong>` +
+        `<ul>` +
+          `<li>Filters on <span class="ic">business_event_type</span> and <span class="ic">business_response_state</span> are semantically correct.</li>` +
+          `<li style="color:var(--bad)"><strong>CRITICAL SEMANTIC ISSUE (Missing Partition Pruning):</strong> The query has <strong>no filter on <span class="ic">year</span>, <span class="ic">month</span> or <span class="ic">day</span></strong> partition columns. Hive will scan <strong>all 3,402 partitions</strong> of <span class="ic">${leftStream}</span> and the full history of <span class="ic">${rightStream}</span> on every run. This is the highest-cost anti-pattern flagged by <span class="ic">analytics_git_mr_bot</span>.</li>` +
+        `</ul>`
+    );
+    findings.syntax.push(
+        `<strong>GROUP BY Clause:</strong>` +
+        `<ul>` +
+          `<li>All non-aggregated columns are present — syntactically correct.</li>` +
+          `<li><strong>Cardinality risk:</strong> grouping by 8 high-cardinality columns from two joined billion-row tables will produce a group-set explosion on the reducer side. Expected output cardinality &gt; 10⁹ rows.</li>` +
+        `</ul>`
+    );
+    findings.syntax.push(`<strong>Trailing Semicolon:</strong> Present.`);
+
+    // -------- 3. IMPROVEMENTS / PERF --------
+    findings.perf.push({
+        heading: '',
+        html:
+            `<div class="meta-box"><strong>Metadata for <span class="ic">${leftStream}</span>:</strong>` +
+            `<ul>` +
+              `<li><strong>Partitions:</strong> <span class="ic">year, month, day</span> (3,402 partitions)</li>` +
+              `<li><strong>Bucketing:</strong> <span class="ic">groupingkey</span> (64 buckets)</li>` +
+              `<li><strong>Size:</strong> 146 PB</li>` +
+              `<li><strong>Rows:</strong> 818 Billion</li>` +
+            `</ul>` +
+            `<strong>Metadata for <span class="ic">${rightStream}</span>:</strong>` +
+            `<ul>` +
+              `<li><strong>Partitions:</strong> <span class="ic">year, month, day</span> (2,978 partitions)</li>` +
+              `<li><strong>Bucketing:</strong> <span class="ic">groupingkey</span> (32 buckets)</li>` +
+              `<li><strong>Size:</strong> 41 PB</li>` +
+              `<li><strong>Rows:</strong> 312 Billion</li>` +
+            `</ul>` +
+            `<strong>Metadata for <span class="ic">${target}</span>:</strong>` +
+            `<ul>` +
+              `<li><strong>Owner group:</strong> <span class="ic">analytics-prod-owners</span></li>` +
+              `<li><strong>Downstream consumers:</strong> 14 Looker dashboards, 6 prod ETLs, finance daily reconciliation.</li>` +
+              `<li><strong>SLA:</strong> 99.9% freshness within 30 minutes — a failed overwrite would breach the SLA.</li>` +
+            `</ul></div>`
+    });
+
+    findings.perf.push({
+        heading: '3.1. CRITICAL: Do Not Write Directly to a Protected Production Table',
+        html:
+            `<p>Production tables under <span class="ic">prod_analytics.*</span> are owned by <span class="ic">analytics-prod-owners</span> and must be written only by promoted Airflow DAGs. The current MR performs an <span class="ic">INSERT OVERWRITE</span> from a developer branch, which bypasses the staging → validation → promotion gate.</p>` +
+            `<p><strong>Recommendation:</strong> Land the output into a staging table first, validate row counts and key invariants in CI, then promote via the <span class="ic">promote_to_prod</span> Airflow operator.</p>` +
+            `<pre class="snippet">-- Step 1: write to staging\nINSERT OVERWRITE TABLE staging_sandbox.customer_checkout_enriched_v1\nSELECT ...\n\n-- Step 2: validate (separate CI job)\nSELECT COUNT(*), COUNT(DISTINCT client_account_id)\nFROM staging_sandbox.customer_checkout_enriched_v1;\n\n-- Step 3: promote (run by prod DAG only, not from MR)\nINSERT OVERWRITE TABLE ${target}\nSELECT * FROM staging_sandbox.customer_checkout_enriched_v1;</pre>`
+    });
+
+    findings.perf.push({
+        heading: '3.2. CRITICAL: Replace Cross-Streaming JOIN with a Bounded Snapshot',
+        html:
+            `<p>Joining <span class="ic">${leftStream}</span> against <span class="ic">${rightStream}</span> directly forces Hive to scan both streaming tables in full and shuffle them on a non-bucketed key. This is the dominant cost in the current plan.</p>` +
+            `<p><strong>Recommendation:</strong> Materialise a daily snapshot of <span class="ic">${rightStream}</span> into a small bucketed dimension table, then broadcast / bucket-map-join it.</p>` +
+            `<pre class="snippet">-- One-time per day in a dim DAG\nINSERT OVERWRITE TABLE staging_sandbox.dim_user_profile_snapshot\nSELECT account_id, user_segment, user_tier, kyc_status\nFROM ${rightStream}\nWHERE year = 2026 AND month = 5 AND day = 19;\n\n-- Then in the enrichment job\nSELECT /*+ MAPJOIN(u) */\n    t.client_account_id, ...\nFROM ${leftStream} t\nJOIN staging_sandbox.dim_user_profile_snapshot u\n  ON t.client_account_id = u.account_id\nWHERE t.year = 2026 AND t.month = 5 AND t.day BETWEEN 1 AND 19\n  AND t.business_event_type = 'PROCESS_CHECKOUT'\n  AND t.business_response_state = 'SUCCESS';</pre>` +
+            `<p>This removes one streaming scan entirely and converts the shuffle join into a map-side join, typically a 20–40× speed-up.</p>`
+    });
+
+    findings.perf.push({
+        heading: '3.3. CRITICAL: Add Partition Pruning for <span class="ic">' + leftStream + '</span>',
+        html:
+            `<p>The current WHERE clause has no filter on <span class="ic">year</span>, <span class="ic">month</span> or <span class="ic">day</span>. Hive will scan every one of the 3,402 partitions of <span class="ic">${leftStream}</span> (146 PB) on each run.</p>` +
+            `<p><strong>Current Query Snippet:</strong></p>` +
+            `<pre class="snippet">WHERE t.business_event_type = 'PROCESS_CHECKOUT'\n  AND t.business_response_state = 'SUCCESS'</pre>` +
+            `<p><strong>Recommendation:</strong> Bound the scan to the intended date window using the partition columns directly.</p>` +
+            `<pre class="snippet">WHERE t.year = 2026\n  AND (\n      (t.month = 4 AND t.day >= 1) OR\n      (t.month = 5 AND t.day <= 19)\n  )\n  AND t.business_event_type = 'PROCESS_CHECKOUT'\n  AND t.business_response_state = 'SUCCESS'</pre>`
+    });
+
+    findings.perf.push({
+        heading: '3.4. JOIN Key vs Bucket Key Alignment',
+        html:
+            `<p>The join key <span class="ic">client_account_id = account_id</span> does not match either table's bucket key (<span class="ic">groupingkey</span>). To enable a <strong>Sort-Merge-Bucket (SMB) join</strong> for future high-volume runs, re-bucket the staging snapshot on <span class="ic">account_id</span>.</p>` +
+            `<pre class="snippet">CREATE TABLE staging_sandbox.dim_user_profile_snapshot (\n    account_id     STRING,\n    user_segment   STRING,\n    user_tier      STRING,\n    kyc_status     STRING\n)\nCLUSTERED BY (account_id) INTO 64 BUCKETS\nSTORED AS ORC;</pre>`
+    });
+
+    findings.perf.push({
+        heading: '3.5. Idempotency & Re-run Safety',
+        html:
+            `<p>Because the target is <span class="ic">INSERT OVERWRITE</span> on a prod table with no partition spec, a partial failure will leave the prod table empty for a window. Always overwrite at the <span class="ic">PARTITION (year, month, day)</span> level so a re-run only rewrites the failed slice.</p>`
+    });
+
+    findings.perf.push({
+        heading: '',
+        html: `<p style="margin-top:8px"><strong>This MR cannot be auto-merged.</strong> Resolve the prod-write policy violation by routing through staging, add partition pruning, and replace the streaming-to-streaming join with a bounded snapshot join. Once those changes are in, re-run the pipeline and request approval from <span class="ic">data-platform-sre</span>.</p>`
+    });
+
+    return findings;
+}
+
+function renderAudit(findings) {
+    document.getElementById('auditEmpty').style.display = 'none';
+    document.getElementById('auditCard').style.display = 'block';
+    document.getElementById('auditProd').innerHTML = findings.prod.map(p => `<p>${p}</p>`).join('');
+    document.getElementById('auditSyntax').innerHTML = findings.syntax.map(s => `<div class="sect">${s}</div>`).join('');
+    document.getElementById('auditPerf').innerHTML = findings.perf.map(p => {
+        const h = p.heading ? `<h4>${p.heading}</h4>` : '';
+        return `<div class="sect">${h}${p.html}</div>`;
+    }).join('');
+    const v = document.getElementById('auditVerdict');
+    v.innerHTML = findings.failed
+        ? `<div class="verdict fail"><i class="fa-solid fa-ban"></i> BLOCK MERGE — production-impact risk detected.</div>`
+        : `<div class="verdict pass"><i class="fa-solid fa-circle-check"></i> APPROVED — safe to merge.</div>`;
+}
+
+function renderPipelineRow(passed, durationSec) {
+    const mins = String(Math.floor(durationSec/60)).padStart(2,'0');
+    const secs = String(durationSec%60).padStart(2,'0');
+    const statusHtml = passed
+        ? `<span class="pipe-status"><i class="fa-solid fa-circle-check"></i> Passed</span>`
+        : `<span class="pipe-status" style="background:#fbe9e7;color:var(--bad);border-color:#f3b8af"><i class="fa-solid fa-circle-xmark"></i> Failed</span>`;
+    const stageHtml = passed
+        ? `<div class="stage-check"><i class="fa-solid fa-check"></i></div>`
+        : `<div class="stage-check" style="background:var(--bad)"><i class="fa-solid fa-xmark"></i></div>`;
+    const id = 5167000 + Math.floor(Math.random()*999);
+    return `
+        <tr>
+            <td>
+                ${statusHtml}
+                <div class="meta-line"><i class="fa-regular fa-clock"></i> 00:${mins}:${secs}</div>
+                <div class="meta-line"><i class="fa-regular fa-calendar"></i> just now</div>
+            </td>
+            <td>
+                <a class="pipe-link" href="#">Update analytics_dev_cf.hql</a>
+                <div class="meta-line">
+                    <span class="mono">#${id}</span>
+                    <span class="mono"><i class="fa-solid fa-code-branch"></i> 76144</span>
+                    <span class="mono"><i class="fa-solid fa-code-commit"></i> 6afec5e0</span>
+                </div>
+                <div style="margin-top:6px">
+                    <span class="badge badge-latest">latest</span>
+                    <span class="badge badge-mr">merge request</span>
+                </div>
+            </td>
+            <td><div class="avatar" style="width:32px;height:32px;font-size:13px">NC</div></td>
+            <td>${stageHtml}</td>
+            <td style="text-align:right"><button class="btn"><i class="fa-solid fa-download"></i></button></td>
+        </tr>
+    `;
+}
+
+runBtn.addEventListener('click', () => {
+    runBtn.disabled = true;
+    runLoader.classList.add('show');
+
+    setTimeout(() => {
+        const code = codeArea.innerText;
+        const findings = analyze(code);
+        renderAudit(findings);
+
+        const duration = 60 + Math.floor(Math.random()*60);
+        document.getElementById('pipelineRows').innerHTML = renderPipelineRow(!findings.failed, duration);
+
+        document.getElementById('pipelinesCount').innerText = '1';
+        document.getElementById('overviewCount').innerText = '2';
+
+        const mrBadge = document.getElementById('mrStatusBadge');
+        if (findings.failed) {
+            mrBadge.className = 'badge';
+            mrBadge.style.background = '#fbe9e7';
+            mrBadge.style.color = 'var(--bad)';
+            mrBadge.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Blocked';
+            document.getElementById('blockBox').style.display = 'block';
+            document.getElementById('mergeBox').style.display = 'none';
+        } else {
+            mrBadge.className = 'badge badge-passed';
+            mrBadge.style.background = '';
+            mrBadge.style.color = '';
+            mrBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Pipeline passed';
+            document.getElementById('mergeBox').style.display = 'block';
+            document.getElementById('blockBox').style.display = 'none';
+        }
+
+        runLoader.classList.remove('show');
+        runBtn.disabled = false;
+        switchTab('overview');
+    }, 1400);
+});
+
+document.getElementById('mergeBtn').addEventListener('click', () => {
+    const mrBadge = document.getElementById('mrStatusBadge');
+    mrBadge.className = 'badge badge-merged';
+    mrBadge.innerHTML = '<i class="fa-solid fa-code-merge"></i> Merged';
+    document.getElementById('mergeBoxText').innerHTML =
+        '<div style="font-weight:600;color:var(--ok)">Merged into cdp_main</div>' +
+        '<div style="color:var(--muted); font-size:13px">Deployment will be triggered by the downstream job.</div>';
+    document.getElementById('mergeBtn').disabled = true;
+    document.getElementById('mergeBtn').textContent = 'Merged';
+});
+</script>
+</body>
+</html>
